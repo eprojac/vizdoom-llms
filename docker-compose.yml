@@ -1,0 +1,84 @@
+services:
+  doom-vlm-duel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-vllm/vllm-openai:nightly}
+    image: doom-vlm-duel:dgx-spark
+    container_name: doom-vlm-duel
+    network_mode: host
+    ipc: host
+    environment:
+      # Leave HF_TOKEN unset/empty for anonymous access to public repos.
+      # container_run.sh unsets it if empty so Hugging Face does not see a blank token.
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: /root/.cache/huggingface
+      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
+      VLLM_WORKER_MULTIPROC_METHOD: ${VLLM_WORKER_MULTIPROC_METHOD:-spawn}
+      TOKENIZERS_PARALLELISM: ${TOKENIZERS_PARALLELISM:-false}
+      SDL_VIDEODRIVER: dummy
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ${HF_CACHE_DIR:-./hf-cache}:/root/.cache/huggingface
+      - ${VLLM_CACHE_DIR:-./vllm-cache}:/root/.cache/vllm
+      - ./runs:/workspace/doom-vlm-duel/runs
+      - ./scenarios:/workspace/doom-vlm-duel/scenarios:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    command:
+      - python3
+      - doom_vlm_duel_dask_vllm.py
+      - --qwen-model
+      - ${QWEN_MODEL:-RedHatAI/Qwen3.6-35B-A3B-NVFP4}
+      - --gemma-model
+      - ${GEMMA_MODEL:-RedHatAI/gemma-4-26B-A4B-it-NVFP4}
+      - --bots
+      - ${BOTS:-0}
+      - --duration-s
+      - ${DURATION_S:-300}
+      - --map
+      - ${DOOM_MAP:-basic.cfg}
+      - --max-model-len
+      - ${MAX_MODEL_LEN:-4096}
+      - --max-num-batched-tokens
+      - ${MAX_NUM_BATCHED_TOKENS:-3072}
+      - --qwen-kv-cache-memory-bytes
+      - ${QWEN_KV_CACHE_MEMORY_BYTES:-2G}
+      - --gemma-kv-cache-memory-bytes
+      - ${GEMMA_KV_CACHE_MEMORY_BYTES:-2G}
+      - --qwen-gpu-mem
+      - ${QWEN_GPU_MEM:-0.34}
+      - --gemma-gpu-mem
+      - ${GEMMA_GPU_MEM:-0.62}
+      - --request-timeout-s
+      - ${REQUEST_TIMEOUT_S:-30}
+      - --vllm-startup-timeout-s
+      - ${VLLM_STARTUP_TIMEOUT_S:-0}
+      - --dask-workers
+      - ${DASK_WORKERS:-4}
+      - --record-fps
+      - ${RECORD_FPS:-35}
+      - --map-video-scale
+      - ${MAP_VIDEO_SCALE:-20}
+      - --status-interval-s
+      - ${STATUS_INTERVAL_S:-5}
+      - --stuck-escape-frames
+      - ${STUCK_ESCAPE_FRAMES:-24}
+      - --hf-cache-status-interval-s
+      - ${HF_CACHE_STATUS_INTERVAL_S:-10}
+      - --out-dir
+      - runs/${RUN_NAME:-latest}
+      - --qwen-extra=${QWEN_EXTRA:-}
+      - --gemma-extra=${GEMMA_EXTRA:-}

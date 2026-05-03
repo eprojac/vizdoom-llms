@@ -2,7 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+hf-cache/
+vllm-cache/
 # C extensions
 *.so
 
@@ -216,3 +217,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+scenarios/basic_1v1.wad
